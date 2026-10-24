@@ -5,6 +5,7 @@ import { defineConfig } from 'vite'
 
 // basicSsl gives the dev server a self-signed HTTPS cert so the phone camera works over the LAN.
 export default defineConfig({
+  base: '/solo-leveling/',
   server: { host: true },
   preview: { host: true },
   plugins: [
