@@ -181,7 +181,7 @@ export const useGame = create<GameState>()(
         if (!c || c.result !== 'fighting') return
         const total = s.attack + roll
         const enemyHealth = Math.max(0, c.enemyHealth - total)
-        const log = [...c.log, `You hit for ${s.attack} + ${roll} = ${total}.`]
+        const log = [...c.log]
 
         if (enemyHealth === 0) {
           log.push(c.boss ? 'The Boss is defeated! You win the game!' : `${c.enemyName} is defeated! +${c.xpReward} XP, +${c.goldReward} gold.`)

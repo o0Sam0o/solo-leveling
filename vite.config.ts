@@ -14,9 +14,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Solo Leveling',
-        short_name: 'Solo Leveling',
-        description: 'Companion app for the Solo Leveling print-and-play board game',
+        name: 'Amberfall',
+        short_name: 'Amberfall',
+        description: 'Companion app for the Amberfall print-and-play board game',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',

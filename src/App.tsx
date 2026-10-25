@@ -1,10 +1,32 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Scanner } from './Scanner'
 import { itemLabel, buyPrice, findType } from './items'
-import { TOTAL_ROUNDS, XP_THRESHOLDS, useGame } from './store'
+import { XP_THRESHOLDS, useGame } from './store'
 import type { ClassName, StatKey } from './store'
 
-const APP_VERSION = 'App v0.8'
+const GAME_NAME = 'Amberfall'
+const APP_VERSION = 'App v0.29'
+const STAGE_W = 1080
+const STAGE_H = 1920
+
+// Scale the fixed 1080x1920 stage to fit the screen, centered.
+function useStageScale() {
+  const calc = () => {
+    const scale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H)
+    return {
+      scale,
+      x: (window.innerWidth - STAGE_W * scale) / 2,
+      y: (window.innerHeight - STAGE_H * scale) / 2,
+    }
+  }
+  const [t, setT] = useState(calc)
+  useEffect(() => {
+    const onResize = () => setT(calc())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return t
+}
 
 function Counter({ label, value, onChange, hint }: {
   label: string
@@ -33,16 +55,19 @@ function StartScreen() {
   const { startGame, setScan } = useGame()
   return (
     <section>
-      <h1>Solo Leveling</h1>
-      <p>Scan the Map 1 code on the slider to begin.</p>
-      <Scanner
-        onScan={(v) => {
-          setScan(v)
-          if (v === 'Map 1') startGame()
-        }}
-      />
-      <ScanStatus expected="Map 1" />
-      <button className="btn small" onClick={startGame}>Skip scan (testing)</button>
+      <h1>{GAME_NAME}</h1>
+      <div className="center-block">
+        <p>Scan the code on the slider to begin.</p>
+        <Scanner
+          label="Scan Map to Start"
+          onScan={(v) => {
+            setScan(v)
+            if (v === 'Map 1') startGame()
+          }}
+        />
+      </div>
+      <div className="bottom-note"><ScanStatus expected="Map 1" /></div>
+      <button className="btn small bottom-action" onClick={startGame}>Skip scan (testing)</button>
     </section>
   )
 }
@@ -66,6 +91,22 @@ function ClassScreen() {
   )
 }
 
+function StatHeader() {
+  const s = useGame()
+  const inFight = s.combat?.result === 'fighting' || s.combat?.result === 'won'
+  const defense = inFight && s.combat ? s.combat.defenseLeft : s.defense
+  return (
+    <div className="stat-header">
+      <div className="hero-id">{s.cls} Level {s.level}</div>
+      <div className="hero-stats">
+        <span>Health {s.health}</span>
+        <span>Attack {s.attack}</span>
+        <span>Defense {defense}</span>
+      </div>
+    </div>
+  )
+}
+
 function NavBar() {
   const { screen, navigate, level, pendingPoints, xp } = useGame()
   const canLevel = xp >= (XP_THRESHOLDS[level - 1] ?? Infinity) || pendingPoints > 0
@@ -75,7 +116,6 @@ function NavBar() {
       <button className={screen === 'character' ? 'btn small active' : 'btn small'} onClick={() => navigate('character')}>
         Character{canLevel ? ' !' : ''}
       </button>
-      <button className={screen === 'debug' ? 'btn small active' : 'btn small'} onClick={() => navigate('debug')}>Debug</button>
     </nav>
   )
 }
@@ -89,13 +129,22 @@ function CombatScreen() {
 
   return (
     <section>
-      <h1>{c.enemyName}</h1>
-      <p>Level {c.enemyLevel} - Health {c.enemyHealth}/{c.enemyMaxHealth} - Damage {c.enemyDamage}</p>
-      <p>Your health: {s.health}/{s.maxHealth} - Attack {s.attack} - Defense {c.defenseLeft}/{s.defense}</p>
+      <div className="stat-header">
+        <div className="hero-id">{c.enemyName} Level {c.enemyLevel}</div>
+        <div className="hero-stats">
+          <span>Health {c.enemyHealth}/{c.enemyMaxHealth}</span>
+          <span>Damage {c.enemyDamage}</span>
+        </div>
+      </div>
 
       {fighting && (
         <>
-          <h2>Roll your die and enter the result</h2>
+          <h2>Your attack</h2>
+          <ol className="steps">
+            <li>Roll the die.</li>
+            <li>Enter your roll below.</li>
+            <li>Tap Attack.</li>
+          </ol>
           <div className="counter sketch">
             <span className="label">Die roll</span>
             <button className="btn round" onClick={() => setRoll((r) => Math.max(1, r - 1))}>-</button>
@@ -108,9 +157,11 @@ function CombatScreen() {
         </>
       )}
 
-      <div className="result sketch">
-        {c.log.length === 0 ? <span>The fight begins!</span> : c.log.map((line, i) => <span key={i}>{line}</span>)}
-      </div>
+      {c.log.length > 0 && (
+        <div className="result sketch">
+          {c.log.map((line, i) => <span key={i}>{line}</span>)}
+        </div>
+      )}
 
       {c.result === 'won' && !c.boss && <button className="btn primary" onClick={s.endCombat}>Continue</button>}
       {c.result === 'won' && c.boss && <button className="btn primary" onClick={s.reset}>Play again</button>}
@@ -127,21 +178,23 @@ function MainScreen() {
 
   return (
     <section>
-      <h1>{s.cls} - Level {s.level}</h1>
-      <Counter
-        label={`Rounds left (of ${TOTAL_ROUNDS})`}
-        value={s.round}
-        onChange={(d) => s.adjust('round', d)}
-      />
+      <p className="center">Rounds left: {s.round}</p>
       {s.round === 0 ? (
         !s.combat && <button className="btn primary" onClick={s.startBoss}>Fight boss</button>
       ) : (
-        <h2>Scan a location</h2>
+        <>
+          <h2>Your turn</h2>
+          <ol className="steps">
+            <li>Roll the die.</li>
+            <li>Slide the slider to your number.</li>
+            <li>Scan the code you uncover.</li>
+          </ol>
+        </>
       )}
       {s.combat && (
         <button className="btn primary" onClick={() => s.navigate('combat')}>Resume fight</button>
       )}
-      {s.round > 0 && <Scanner onScan={s.scanLocation} />}
+      {s.round > 0 && <Scanner label="Scan a location" onScan={s.scanLocation} />}
       {s.lastScan && (
         <div className="result sketch">
           {place ? (
@@ -162,13 +215,16 @@ function MainScreen() {
         </div>
       )}
       {s.round > 0 && (
-        <div className="row">
+        <div className="row center-row">
           {[1, 2, 3, 4].map((n) => (
             <button key={n} className="btn small" onClick={() => s.scanLocation(`Location ${n}`)}>Test L{n}</button>
           ))}
         </div>
       )}
-      <button className="btn small" onClick={() => confirm('Start over?') && s.reset()}>New game</button>
+      <div className="bottom-stack">
+        <button className="btn small" onClick={() => s.navigate('debug')}>Debug</button>
+        <button className="btn small" onClick={() => confirm('Start over?') && s.reset()}>New game</button>
+      </div>
     </section>
   )
 }
@@ -185,13 +241,22 @@ function CharacterScreen() {
 
   return (
     <section>
-      <h1>{s.cls} - Level {s.level}</h1>
+      <h1>Character</h1>
 
-      <Counter label="Health" value={s.health} hint={`/${s.maxHealth}`} onChange={(d) => s.adjust('health', d)} />
-      <Counter label="Defense (current)" value={s.defense} onChange={(d) => s.adjust('defense', d)} />
+      <div className="counter sketch">
+        <span className="label">Health</span>
+        <span className="value">{s.health}/{s.maxHealth}</span>
+      </div>
+      <div className="counter sketch">
+        <span className="label">Defense</span>
+        <span className="value">{s.defense}</span>
+      </div>
 
       <h2>Experience</h2>
-      <Counter label="XP" value={s.xp} hint={threshold ? `/${threshold}` : ' (max)'} onChange={(d) => s.adjust('xp', d)} />
+      <div className="counter sketch">
+        <span className="label">XP</span>
+        <span className="value">{s.xp}{threshold ? `/${threshold}` : ' (max)'}</span>
+      </div>
       <button className="btn primary" disabled={!ready} onClick={s.levelUp}>
         {ready ? 'Level up!' : 'Not enough XP'}
       </button>
@@ -248,6 +313,9 @@ function DebugScreen() {
   return (
     <section>
       <h1>Debug</h1>
+      <Counter label="Rounds left" value={s.round} onChange={(d) => s.adjust('round', d)} />
+      <Counter label="Health" value={s.health} hint={`/${s.maxHealth}`} onChange={(d) => s.adjust('health', d)} />
+      <Counter label="Defense" value={s.defense} onChange={(d) => s.adjust('defense', d)} />
       <div className="counter sketch">
         <span className="label">Gold</span>
         <span className="value">{s.gold}</span>
@@ -273,13 +341,16 @@ function DebugScreen() {
 
 export default function App() {
   const { phase, screen } = useGame()
+  const { scale, x, y } = useStageScale()
   return (
+    <div className="stage" style={{ transform: `translate(${x}px, ${y}px) scale(${scale})` }}>
     <main>
       {phase === 'start' && <StartScreen />}
       {phase === 'class' && <ClassScreen />}
       {phase === 'play' && (
         <>
-          <NavBar />
+          <StatHeader />
+          {screen === 'combat' ? <hr className="divider" /> : <NavBar />}
           {screen === 'main' && <MainScreen />}
           {screen === 'character' && <CharacterScreen />}
           {screen === 'shop' && <ShopScreen />}
@@ -289,5 +360,6 @@ export default function App() {
       )}
       <footer>{APP_VERSION}</footer>
     </main>
+    </div>
   )
 }

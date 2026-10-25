@@ -3,10 +3,11 @@ import QrScanner from 'qr-scanner'
 
 interface Props {
   onScan: (value: string) => void
+  label?: string
 }
 
-// Camera only starts after the user taps "Start Scan" (required on iOS Safari).
-export function Scanner({ onScan }: Props) {
+// Camera only starts after the user taps the scan button (required on iOS Safari).
+export function Scanner({ onScan, label = 'Start Scan' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const scannerRef = useRef<QrScanner | null>(null)
   const [active, setActive] = useState(false)
@@ -55,7 +56,7 @@ export function Scanner({ onScan }: Props) {
       {active ? (
         <button className="btn" onClick={stop}>Cancel</button>
       ) : (
-        <button className="btn primary" onClick={start}>Start Scan</button>
+        <button className="btn primary" onClick={start}>{label}</button>
       )}
       {error && <p className="error">{error}</p>}
     </div>
